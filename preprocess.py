@@ -16,15 +16,15 @@ except Exception:
     import pdb
 
 
-def decode_image(img_str, resize=None):
+def decode_image(img_str, resize=None): 
     """
     Decode image from tfrecord data
     :param img_str: image encoded as a png in a string
     :param resize: tuple width two elements that defines the new size of the image. optional
     :return: image as a numpy array
     """
-    nparr = np.fromstring(img_str, np.uint8)
-    img_str = cv2.imdecode(nparr, -1)
+    nparr = np.fromstring(img_str, np.uint8) #从字符串中进行解码出数据
+    img_str = cv2.imdecode(nparr, -1) #从指定的内存缓存中读取数据，并把数据转换(解码)成图像格式
     if resize is not None:
         img_str = cv2.resize(img_str, resize)
     return img_str
@@ -64,9 +64,9 @@ def bounding_box(img):
     :return: inclusive bounding box indices: top_row, bottom_row, leftmost_column, rightmost_column
     """
     # helper function to
-    rows = np.any(img, axis=1)
+    rows = np.any(img, axis=1) # "或“操作
     cols = np.any(img, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]]
+    rmin, rmax = np.where(rows)[0][[0, -1]] # np.where 输出满足条件 (即非0) 元素的坐标
     cmin, cmax = np.where(cols)[0][[0, -1]]
 
     return rmin, rmax, cmin, cmax
