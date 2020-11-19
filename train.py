@@ -60,7 +60,7 @@ def validation(sess, brain, num_samples, params):
 def run_training(params):
     """ Run training with the parsed arguments """
 
-    with tf.Graph().as_default():
+    with tf.Graph().as_default(): # 将这个实例即新生成的图作为整个tensorflow 运行环境的默认图
         if params.seed is not None:
             tf.set_random_seed(params.seed)
 
@@ -74,11 +74,11 @@ def run_training(params):
             test_data, num_test_samples = get_dataflow(params.testfiles, params, is_training=False)
             test_brain = pfnet.PFNet(inputs=test_data[1:], labels=test_data[0], params=params, is_training=False)
 
-        # Add the variable initializer Op.
+        # Add the variable initializer Op. Combine multiple operations
         init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
         # Create a saver for writing training checkpoints.
-        saver = tf.train.Saver(var_list=tf.trainable_variables(), max_to_keep=3)
+        saver = tf.train.Saver(var_list=tf.trainable_variables(), max_to_keep=3) # Maximum number of saved models
 
         # Create a session for running Ops on the Graph.
         os.environ["CUDA_VISIBLE_DEVICES"] = "%d"%int(params.gpu)
@@ -94,8 +94,8 @@ def run_training(params):
                 print("Loading model from " + params.load)
                 saver.restore(sess, params.load)
 
-            coord = tf.train.Coordinator()
-            threads = tf.train.start_queue_runners(coord=coord)
+            coord = tf.train.Coordinator() # Coordinator类用来管理在Session中的多个线程
+            threads = tf.train.start_queue_runners(coord=coord) # 启动tensor的入队线程
 
             try:
                 decay_step = 0

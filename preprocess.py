@@ -16,15 +16,15 @@ except Exception:
     import pdb
 
 
-def decode_image(img_str, resize=None): 
+def decode_image(img_str, resize=None):
     """
     Decode image from tfrecord data
     :param img_str: image encoded as a png in a string
     :param resize: tuple width two elements that defines the new size of the image. optional
     :return: image as a numpy array
     """
-    nparr = np.fromstring(img_str, np.uint8) #从字符串中进行解码出数据
-    img_str = cv2.imdecode(nparr, -1) #从指定的内存缓存中读取数据，并把数据转换(解码)成图像格式
+    nparr = np.fromstring(img_str, np.uint8)
+    img_str = cv2.imdecode(nparr, -1)
     if resize is not None:
         img_str = cv2.resize(img_str, resize)
     return img_str
@@ -38,7 +38,7 @@ def raw_images_to_array(images):
     """
     image_list = []
     for image_str in images:
-        image = decode_image(image_str, (56, 56))
+        image = decode_image(image_str, (56, 56)) # size:(56,56)
         image = scale_observation(np.atleast_3d(image.astype(np.float32)))
         image_list.append(image)
 
@@ -54,7 +54,7 @@ def scale_observation(x):
     if x.ndim == 2 or x.shape[2] == 1:  # depth
         return x * (2.0 / 100.0) - 1.0
     else:  # rgb
-        return x * (2.0/255.0) - 1.0
+        return x * (2.0/255.0) - 1.0  # value is between [0, 2]
 
 
 def bounding_box(img):
@@ -64,9 +64,9 @@ def bounding_box(img):
     :return: inclusive bounding box indices: top_row, bottom_row, leftmost_column, rightmost_column
     """
     # helper function to
-    rows = np.any(img, axis=1) # "或“操作
+    rows = np.any(img, axis=1) # Test whether any array element along a given axis evaluates to True.
     cols = np.any(img, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]] # np.where 输出满足条件 (即非0) 元素的坐标
+    rmin, rmax = np.where(rows)[0][[0, -1]] # np.where: Return elements chosen from x or y depending on condition.
     cmin, cmax = np.where(cols)[0][[0, -1]]
 
     return rmin, rmax, cmin, cmax
@@ -261,7 +261,7 @@ class House3DTrajData(RNGDataFlow):
         for file in self.files:
             gen = tf.python_io.tf_record_iterator(file)
             for data_i, string_record in enumerate(gen):
-                result = tf.train.Example.FromString(string_record)
+                result = tf.train.Example.FromString(string_record) # decord message from binary file
                 features = result.features.feature
 
                 # process maps
@@ -279,19 +279,19 @@ class House3DTrajData(RNGDataFlow):
                     map_roomid = self.process_roomid_map(features['map_roomid'].bytes_list.value[0])
 
                 # input global map is a concatentation of semantic channels
-                global_map = np.concatenate(global_map_list, axis=-1)
+                global_map = np.concatenate(global_map_list, axis=-1) # concatenate in the last axis
 
-                # rescale to 0..2 range. this way zero padding will produce the equivalent of obstacles
+                # rescale to 0~2 range. this way zero padding will produce the equivalent of obstacles
                 global_map = global_map.astype(np.float32) * (2.0 / 255.0)
 
                 # process true states
                 true_states = features['states'].bytes_list.value[0]
-                true_states = np.frombuffer(true_states, np.float32).reshape((-1, 3))
+                true_states = np.frombuffer(true_states, np.float32).reshape((-1, 3)) #frombuffer:Interpret a buffer as a 1-dimensional array.
 
                 # trajectory may be longer than what we use for training
                 data_trajlen = true_states.shape[0]
                 assert data_trajlen >= self.trajlen
-                true_states = true_states[:self.trajlen]
+                true_states = true_states[:self.trajlen] # Only use trajectories of required length
 
                 # process odometry
                 odometry = features['odometry'].bytes_list.value[0]
@@ -317,7 +317,7 @@ class House3DTrajData(RNGDataFlow):
                 yield (true_states, global_map, init_particles, observation, odometry)
 
     def process_wall_map(self, wallmap_feature):
-        floormap = np.atleast_3d(decode_image(wallmap_feature))
+        floormap = np.atleast_3d(decode_image(wallmap_feature)) #View inputs as arrays with at least three dimensions
         # transpose and invert
         floormap = 255 - np.transpose(floormap, axes=[1, 0, 2])
         return floormap
@@ -367,7 +367,7 @@ class House3DTrajData(RNGDataFlow):
         if distr == "tracking":
             # fix seed
             if seed is not None:
-                random_state = np.random.get_state()
+                random_state = np.random.get_state() #Return a tuple representing the internal state of the generator.
                 np.random.seed(seed)
 
             # sample offset from the Gaussian
@@ -382,7 +382,8 @@ class House3DTrajData(RNGDataFlow):
 
         elif distr == "one-room":
             # mask the room the initial state is in
-            masked_map = (roomidmap == roomidmap[int(np.rint(state[0])), int(np.rint(state[1]))])
+            masked_map = (roomidmap == roomidmap[int(np.rint(state[0])), int(np.rint(state[1]))]) # np.rint: Round elements of the array to the nearest integer.
+
 
             # get bounding box for more efficient sampling
             rmin, rmax, cmin, cmax = bounding_box(masked_map)
@@ -390,11 +391,11 @@ class House3DTrajData(RNGDataFlow):
             # rejection sampling inside bounding box
             sample_i = 0
             while sample_i < num_particles:
-                particle = np.random.uniform(low=(rmin, cmin, 0.0), high=(rmax, cmax, 2.0*np.pi), size=(3, ),)
+                particle = np.random.uniform(low=(rmin, cmin, 0.0), high=(rmax, cmax, 2.0*np.pi), size=(3, ),) # sample from [low, high)
                 # reject if mask is zero
                 if not masked_map[int(np.rint(particle[0])), int(np.rint(particle[1]))]:
                     continue
-                particles[sample_i] = particle
+                particles[sample_i] = particle # add this particle to new set, only when mask is 1
                 sample_i += 1
         else:
             raise ValueError
@@ -435,8 +436,8 @@ def get_dataflow(files, params, is_training):
     # build initial covariance matrix of particles, in pixels and radians
     particle_std = params.init_particles_std.copy()
     particle_std[0] = particle_std[0] / params.map_pixel_in_meters  # convert meters to pixels
-    particle_std2 = np.square(particle_std)  # variance
-    init_particles_cov = np.diag(particle_std2[(0, 0, 1),])
+    particle_std2 = np.square(particle_std)  # element-wise variance
+    init_particles_cov = np.diag(particle_std2[(0, 0, 1),]) # index is (0,0,1)
 
     df = House3DTrajData(files, mapmode, obsmode, trajlen, num_particles,
                          params.init_particles_distr, init_particles_cov,
@@ -449,7 +450,7 @@ def get_dataflow(files, params, is_training):
 
     # shuffle
     if is_training:
-        df = dataflow.LocallyShuffleData(df, 100 * batchsize)
+        df = dataflow.LocallyShuffleData(df, 100 * batchsize) # buffer_size = 100 * batchsize
 
     # repeat data for the number of epochs
     df = dataflow.RepeatedData(df, params.epochs)
@@ -457,7 +458,7 @@ def get_dataflow(files, params, is_training):
     # batch
     df = BatchDataWithPad(df, batchsize, padded_indices=(1,))
 
-    # break trajectory into multiple segments for BPPT training. Augment df with is_first_step indicator
+    # break trajectory into multiple segments for BPTT training. Augment df with is_first_step indicator
     df = BreakForBPTT(df, timed_indices=(0, 3, 4), trajlen=trajlen, bptt_steps=bptt_steps)
     # data: true_states, global_map, init_particles, observation, odometry, is_first_step
 
@@ -470,7 +471,7 @@ def get_dataflow(files, params, is_training):
     # df.start()
 
     obs_ch = {'rgb': 3, 'depth': 1, 'rgb-depth': 4}
-    map_ch = {'wall': 1, 'wall-door': 2, 'wall-roomtype': 10, 'wall-door-roomtype': 11}
+    map_ch = {'wall': 1, 'wall-door': 2, 'wall-roomtype': 10, 'wall-door-roomtype': 11} # every semantic is a channel
     types = [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.bool]
     sizes = [(batchsize, bptt_steps, 3),
              (batchsize, None, None, map_ch[mapmode]),
@@ -485,7 +486,7 @@ def get_dataflow(files, params, is_training):
             yield tuple(dp)
 
     dataset = tf.data.Dataset.from_generator(tuplegen, tuple(types), tuple(sizes))
-    iterator = dataset.make_one_shot_iterator()
+    iterator = dataset.make_one_shot_iterator() # only read once
     nextdata = iterator.get_next()
 
     return nextdata, num_samples

@@ -219,7 +219,7 @@ class PFCell(tf.nn.rnn_cell.RNNCell):
 
         # define some helper variables
         input_shape = tf.shape(global_maps)
-        global_height = tf.cast(input_shape[1], tf.float32)
+        global_height = tf.cast(input_shape[1], tf.float32) # change data type of tensor
         global_width = tf.cast(input_shape[2], tf.float32)
         height_inverse = 1.0 / global_height
         width_inverse = 1.0 / global_width
@@ -247,7 +247,7 @@ class PFCell(tf.nn.rnn_cell.RNNCell):
         rotm = tf.stack((costheta, sintheta, zero, -sintheta, costheta, zero, zero, zero, one), axis=1)
         rotm = tf.reshape(rotm, (total_samples, 3, 3))
 
-        # 3, scale down the map
+        # 3, scale down the map      tf.fill:创建一个维度为dims，值为value的tensor对象
         scale_x = tf.fill((total_samples, ), float(local_map_size[1] * window_scaler) * width_inverse)
         scale_y = tf.fill((total_samples, ), float(local_map_size[0] * window_scaler) * height_inverse)
 
@@ -306,7 +306,7 @@ class PFCell(tf.nn.rnn_cell.RNNCell):
                     dilation_rate=(3, 3), use_bias=True, layer_i=layer_i)(x),
             ]
             x = tf.concat(convs, axis=-1)
-            x = tf.contrib.layers.layer_norm(x, activation_fn=tf.nn.relu)
+            x = tf.contrib.layers.layer_norm(x, activation_fn=tf.nn.relu) # layer normalization
             assert x.get_shape().as_list()[1:4] == [28, 28, 64]
             # (28x28x64)
 
@@ -526,7 +526,7 @@ class PFNet(object):
 
         # create hidden state variable
         assert len(self.hidden_states) == 0  # no hidden state should be set before
-        self.hidden_states = [
+        self.hidden_states = [ # identify variables
             tf.get_variable("particle_states", shape=init_particle_states.get_shape(),
                             dtype=init_particle_states.dtype, initializer=tf.constant_initializer(0), trainable=False),
             tf.get_variable("particle_weights", shape=init_particle_weights.get_shape(),
